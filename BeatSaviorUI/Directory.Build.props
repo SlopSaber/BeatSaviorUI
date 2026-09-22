@@ -8,7 +8,7 @@
         <PluginName>BeatSaviorUI</PluginName>
         <Authors>Mystogan, qqrz997</Authors>
         <Version>1.0.3</Version>
-        <GameVersion>1.45.0</GameVersion>
+        <GameVersion>1.45.1</GameVersion>
         <Description>Adds various statistics to the level results screen. Does not track or save data externally.</Description>
         <ProjectHome>https://github.com/qqrz997/BeatSaviorUI</ProjectHome>
         <!--<ProjectSource></ProjectSource>-->
