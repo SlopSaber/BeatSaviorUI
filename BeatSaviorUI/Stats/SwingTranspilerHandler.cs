@@ -30,6 +30,7 @@ namespace BeatSaviorUI.Stats
 
 	public static class SwingTranspilerHandler
 	{
+		public static bool Enabled { get; set; }
 		public static MethodInfo PreparePreswingMethodInfo = SymbolExtensions.GetMethodInfo(() => PreparePreswing(null));
 		public static MethodInfo AddPreswingMethodInfo = SymbolExtensions.GetMethodInfo(() => AddPreswing(0));
 		public static MethodInfo AddPostswingMethodInfo = SymbolExtensions.GetMethodInfo(() => AddPostswing(null, 0));
@@ -45,6 +46,7 @@ namespace BeatSaviorUI.Stats
 
 		public static void PreparePreswing(SaberSwingRatingCounter? ssrc)
 		{
+			if (!Enabled) return;
 			if (!swings.Any((s) => s.ssrc == ssrc))
 			{
 				swings.Add(new SwingHolder(ssrc));
@@ -54,6 +56,7 @@ namespace BeatSaviorUI.Stats
 
 		public static void AddPreswing(float swing)
 		{
+			if (!Enabled) return;
 			// My take here is : 
 			// Somehow code folows this path  :
 			// PreparePreswing() -> GetSwing() -> AddPReswing
@@ -67,14 +70,16 @@ namespace BeatSaviorUI.Stats
 
 		public static void AddPostswing(SaberSwingRatingCounter? ssrc, float swing)
 		{
+			if (!Enabled) return;
 			SwingHolder sh = swings.Find((s) => s.ssrc == ssrc);
 
 			if (sh != null)
 				sh.AddPostSwing(swing);
 		}
 
-		public static SwingHolder GetSwing(SaberSwingRatingCounter? ssrc)
+		public static SwingHolder? GetSwing(SaberSwingRatingCounter? ssrc)
 		{
+			if (!Enabled) return null;
 			SwingHolder sh = swings.Find((s) => s.ssrc == ssrc);
 			swings.Remove(sh);
 			return sh;

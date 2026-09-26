@@ -18,8 +18,9 @@ internal class LevelDataController : IInitializable, IDisposable
     private PauseController PauseController { get; }
     private GameplayCoreSceneSetupData GameplayCoreSceneSetupData { get; }
     private AudioTimeSyncController AudioTimeSyncController { get; }
+    private PluginConfig Config { get; }
 
-    public LevelDataController(StandardLevelScenesTransitionSetupData standardLevelScenesTransitionSetupData, BeatmapObjectManager beatmapObjectManager, PlayerHeadAndObstacleInteraction playerHeadAndObstacleInteraction, ScoreController scoreController, PauseController pauseController, GameplayCoreSceneSetupData gameplayCoreSceneSetupData, AudioTimeSyncController audioTimeSyncController)
+    public LevelDataController(StandardLevelScenesTransitionSetupData standardLevelScenesTransitionSetupData, BeatmapObjectManager beatmapObjectManager, PlayerHeadAndObstacleInteraction playerHeadAndObstacleInteraction, ScoreController scoreController, PauseController pauseController, GameplayCoreSceneSetupData gameplayCoreSceneSetupData, AudioTimeSyncController audioTimeSyncController, PluginConfig config)
     {
         StandardLevelScenesTransitionSetupData = standardLevelScenesTransitionSetupData;
         BeatmapObjectManager = beatmapObjectManager;
@@ -28,6 +29,7 @@ internal class LevelDataController : IInitializable, IDisposable
         PauseController = pauseController;
         GameplayCoreSceneSetupData = gameplayCoreSceneSetupData;
         AudioTimeSyncController = audioTimeSyncController;
+        Config = config;
     }
     
     private readonly bool scoreSaberPlaybackEnabled = AccessTools.Method("ScoreSaber.Core.ReplaySystem.HarmonyPatches.PatchHandleHMDUnmounted:Prefix") != null;	
@@ -44,6 +46,9 @@ internal class LevelDataController : IInitializable, IDisposable
 
     public void Initialize()
     {
+        SwingTranspilerHandler.Reset();
+        SwingTranspilerHandler.Enabled = Config.Enabled;
+        if (!Config.Enabled) return;
         StandardLevelScenesTransitionSetupData.didFinishEvent += OnLevelFinished;
         ScoreController.scoringForNoteStartedEvent += OnScoringForNoteStarted;
         BeatmapObjectManager.noteWasCutEvent += OnNoteWasCut;
@@ -54,6 +59,8 @@ internal class LevelDataController : IInitializable, IDisposable
 
     public void Dispose()
     {
+	    SwingTranspilerHandler.Enabled = false;
+	    SwingTranspilerHandler.Reset();
 	    StandardLevelScenesTransitionSetupData.didFinishEvent -= OnLevelFinished;
 	    ScoreController.scoringForNoteStartedEvent -= OnScoringForNoteStarted;
 	    BeatmapObjectManager.noteWasCutEvent -= OnNoteWasCut;
@@ -64,6 +71,7 @@ internal class LevelDataController : IInitializable, IDisposable
 
     private void OnLevelFinished(StandardLevelScenesTransitionSetupData standardLevelScenesTransitionSetupData, LevelCompletionResults levelCompletionResults)
     {
+	    if (!Config.Enabled) return;
 	    if (combo > maxCombo)
 	    {
 		    maxCombo = combo;

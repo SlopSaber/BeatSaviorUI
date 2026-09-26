@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Linq;
+using System.Threading.Tasks;
 using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.ViewControllers;
 using BeatSaviorUI.Models;
@@ -67,6 +68,9 @@ namespace BeatSaviorUI.UI
         private ImageView lowerBandImg = null!;
         private ImageView leftCircleImg = null!;
         private ImageView rightCircleImg = null!;
+        private int coverRequestVersion;
+        private Coroutine? leftCircleAnimation;
+        private Coroutine? rightCircleAnimation;
 
         [UIAction("#post-parse")]
         public void PostParse()
@@ -187,7 +191,9 @@ namespace BeatSaviorUI.UI
 
         public void SetData(PlayData playData, BeatmapLevel beatmapLevel)
         {
-            songCoverImg.sprite = beatmapLevel.previewMediaData.GetCoverSpriteAsync().Result;
+            var coverRequest = ++coverRequestVersion;
+            songCoverImg.sprite = null;
+            _ = LoadCoverAsync(beatmapLevel, coverRequest);
             
             title.text = playData.BeatmapInfo.SongName;
             artist.text = playData.BeatmapInfo.SongArtist;
@@ -228,8 +234,12 @@ namespace BeatSaviorUI.UI
             var leftRatio = playData.Left.Accuracy.Sum() / 115f;
             var rightRatio = playData.Right.Accuracy.Sum() / 115f;
             
-            StartCoroutine(AnimateCircle(leftCircleImg, leftRatio, 1.5f));
-            StartCoroutine(AnimateCircle(rightCircleImg, rightRatio, 1.5f));
+            if (leftCircleAnimation != null)
+                StopCoroutine(leftCircleAnimation);
+            if (rightCircleAnimation != null)
+                StopCoroutine(rightCircleAnimation);
+            leftCircleAnimation = StartCoroutine(AnimateCircle(leftCircleImg, leftRatio, 1.5f));
+            rightCircleAnimation = StartCoroutine(AnimateCircle(rightCircleImg, rightRatio, 1.5f));
             
             leftAverage.text = $"{leftRatio:F2}";
             rightAverage.text = $"{rightRatio:F2}";
@@ -254,6 +264,26 @@ namespace BeatSaviorUI.UI
             
             leftAfterSwing.text = $"{playData.Left.PostSwing * 100f:F2} %";
             rightAfterSwing.text = $"{playData.Right.PostSwing * 100f:F2} %";
+        }
+
+        private async Task LoadCoverAsync(BeatmapLevel beatmapLevel, int requestVersion)
+        {
+            try
+            {
+                var cover = await beatmapLevel.previewMediaData.GetCoverSpriteAsync();
+                if (requestVersion == coverRequestVersion && songCoverImg != null)
+                    songCoverImg.sprite = cover;
+            }
+            catch (System.Exception e)
+            {
+                Plugin.Log.Warn($"Could not load results cover: {e}");
+            }
+        }
+
+        protected override void OnDestroy()
+        {
+            coverRequestVersion++;
+            base.OnDestroy();
         }
 
         private static IEnumerator AnimateCircle(ImageView img, float final, float totalTime)

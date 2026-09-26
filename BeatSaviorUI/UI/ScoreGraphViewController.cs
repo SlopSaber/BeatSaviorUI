@@ -25,6 +25,7 @@ namespace BeatSaviorUI.UI
 		private const float Height = 45;
 		private const float OffsetX = 10f;
 		private const float OffsetY = 5f;
+		private const int MaxGraphSegments = 240;
 		private float scoreOffset;
 		private bool won = true;
 
@@ -128,14 +129,30 @@ namespace BeatSaviorUI.UI
 
 				CreateHorizontalLabels();
 
-				foreach (float f in graph.Keys)
+				var sampleStep = Mathf.Max(1, Mathf.CeilToInt((graph.Count - 1f) / MaxGraphSegments));
+				var pointIndex = 0;
+				var lastDrawnValue = 0f;
+				var lastKey = 0f;
+				var lastValue = 0f;
+				foreach (var point in graph)
 				{
-					if (lastGraphEntry != -1)
+					lastKey = point.Key;
+					lastValue = point.Value;
+					if (pointIndex == 0)
 					{
-						CreateGraphLine((lastGraphEntry, graph[lastGraphEntry]), (f, graph[f]), Color.white);
+						lastGraphEntry = point.Key;
+						lastDrawnValue = point.Value;
 					}
-					lastGraphEntry = f;
+					else if (pointIndex % sampleStep == 0)
+					{
+						CreateGraphLine((lastGraphEntry, lastDrawnValue), (point.Key, point.Value), Color.white);
+						lastGraphEntry = point.Key;
+						lastDrawnValue = point.Value;
+					}
+					pointIndex++;
 				}
+				if (lastGraphEntry != lastKey)
+					CreateGraphLine((lastGraphEntry, lastDrawnValue), (lastKey, lastValue), Color.white);
 
 				CreateVerticalLabels();
 			} 
@@ -180,7 +197,9 @@ namespace BeatSaviorUI.UI
 		private List<float> FindScoreDrops()
 		{
 			int dropWindow = 2;     // in seconds
-			int closestToDropWindow = (int)graph.First().Key, dropSpacing = 4;
+			int firstBeat = (int)graph.First().Key;
+			int lastBeat = (int)graph.Last().Key;
+			int closestToDropWindow = firstBeat, dropSpacing = 4;
 			float diff, dropDelta = -0.01f;
 			List<(float, float)> drops = new List<(float, float)>();
 			List<float> res = new List<float>();
@@ -190,7 +209,7 @@ namespace BeatSaviorUI.UI
 			else if (scoreOffset == 0.8f)
 				dropDelta = 0.005f;		// 0.5%
 
-			for (int i = (int) graph.First().Key + dropWindow + 5; i < graph.Last().Key; i++)
+			for (int i = firstBeat + dropWindow + 5; i < lastBeat; i++)
 			{
 				if (graph.ContainsKey(i - dropWindow))
 					closestToDropWindow = i - dropWindow;

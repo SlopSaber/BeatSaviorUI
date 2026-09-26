@@ -22,6 +22,7 @@ namespace BeatSaviorUI.HarmonyPatches
 		[AffinityPatch(typeof(SoloFreePlayFlowCoordinator), nameof(SoloFreePlayFlowCoordinator.ProcessLevelCompletionResultsAfterLevelDidFinish))]
 		private void Postfix(ref SoloFreePlayFlowCoordinator __instance, LevelCompletionResults levelCompletionResults, BeatmapLevel beatmapLevel)
 		{
+			if (!PluginConfig.Enabled) return;
 			if (levelCompletionResults.levelEndAction != LevelCompletionResults.LevelEndAction.None)
 			{
 				return;
