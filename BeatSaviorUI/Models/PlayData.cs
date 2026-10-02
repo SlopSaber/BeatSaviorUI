@@ -22,20 +22,18 @@ internal class PlayData
     
     public CompletionResultsExtraData CompletionResultsExtraData { get; }
     public BeatmapInfo BeatmapInfo { get; }
+    public ScoreGraphData GraphData { get; }
     
-    public PlayData(
-	    LevelCompletionResults levelCompletionResults,
-	    CompletionResultsExtraData completionResultsExtraData,
-	    BeatmapInfo beatmapInfo)
+    public PlayData(PreparationRequest request)
     {
-	    CompletionResultsExtraData = completionResultsExtraData;
-	    BeatmapInfo = beatmapInfo;
+	    CompletionResultsExtraData = request.ExtraData;
+	    BeatmapInfo = request.BeatmapInfo;
         
-        Won = levelCompletionResults.levelEndStateType == LevelCompletionResults.LevelEndStateType.Cleared;
-        FullCombo = levelCompletionResults.fullCombo;
+        Won = request.Won;
+        FullCombo = request.FullCombo;
 		
-        Rank = new(RankModel.GetRankName(levelCompletionResults.rank));
-        ModifiersMultiplier = GetTotalMultiplier(levelCompletionResults.gameplayModifiers, levelCompletionResults.energy);
+        Rank = request.Rank;
+        ModifiersMultiplier = request.ModifiersMultiplier;
         ScoreRatio = SafeMath.Divide(CompletionResultsExtraData.Notes.Select(n => n.TotalScore).Sum(), 
 										Utils.MaxRawScoreForNumberOfNotes(CompletionResultsExtraData.Notes.Count));
         
@@ -103,11 +101,32 @@ internal class PlayData
 
 		Left.ProcessNoteHitCount(leftNoteHitCount);
 		Right.ProcessNoteHitCount(rightNoteHitCount);
+        GraphData = ScoreGraphData.Prepare(Graph, CompletionResultsExtraData.Notes, Won);
+    }
+
+    internal sealed class PreparationRequest
+    {
+        internal readonly CompletionResultsExtraData ExtraData;
+        internal readonly BeatmapInfo BeatmapInfo;
+        internal readonly bool Won;
+        internal readonly bool FullCombo;
+        internal readonly Rank Rank;
+        internal readonly float ModifiersMultiplier;
+
+        internal PreparationRequest(LevelCompletionResults results, CompletionResultsExtraData extraData, BeatmapInfo beatmapInfo)
+        {
+            ExtraData = extraData;
+            BeatmapInfo = beatmapInfo;
+            Won = results.levelEndStateType == LevelCompletionResults.LevelEndStateType.Cleared;
+            FullCombo = results.fullCombo;
+            Rank = new Rank(RankModel.GetRankName(results.rank));
+            ModifiersMultiplier = GetTotalMultiplier(results.gameplayModifiers, results.energy);
+        }
     }
     
     // Modifiers aren't used in UI, but they could be
     // public List<string> Modifiers { get; } = [];
-    private float GetTotalMultiplier(GameplayModifiers gameplayModifiers, float energy)
+    private static float GetTotalMultiplier(GameplayModifiers gameplayModifiers, float energy)
     {
         float multiplier = 1f;
 

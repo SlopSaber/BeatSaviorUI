@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace BeatSaviorUI.Models;
 
-internal class CompletionResultsExtraData(List<Note> notes, int maxCombo, int bombHitCount, int pauseCount, int wallHitCount)
+internal class CompletionResultsExtraData(NoteSnapshot[] notes, int maxCombo, int bombHitCount, int pauseCount, int wallHitCount)
 {
-    public List<Note> Notes { get; } = notes;
+    public IReadOnlyList<NoteSnapshot> Notes { get; } = notes;
     public int MaxCombo { get; } = maxCombo;
     public int BombHitCount { get; } = bombHitCount;
     public int PauseCount { get; } = pauseCount;

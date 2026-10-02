@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components;
 using BeatSaberMarkupLanguage.ViewControllers;
@@ -25,12 +24,7 @@ namespace BeatSaviorUI.UI
 		private const float Height = 45;
 		private const float OffsetX = 10f;
 		private const float OffsetY = 5f;
-		private const int MaxGraphSegments = 240;
 		private float scoreOffset;
-		private bool won = true;
-
-		private List<float> misses = [];
-		private Dictionary<float, float> graph = [];
 
 		private List<Color> Colors { get; } =
 		[
@@ -96,24 +90,22 @@ namespace BeatSaviorUI.UI
 		{
 			lastSongBeat = 0;
 			scoreOffset = 0;
-			won = true;
-			misses = [];
 
 			try
 			{
 				foreach (Transform t in graphObject.transform)
 					Destroy(t.gameObject);
 
-				graph = playData.Graph;
-				float lastGraphEntry = -1;
-
-				// That should never happen but some magical things decided to fuck my monkey brain by doing impossible things once in a while and that's freaking annoying
-				if (graph.Count == 0)
+				var data = playData.GraphData;
+				if (!data.HasData)
+				{
+					if (data.Error != null)
+						Plugin.Log.Error(data.Error);
 					return;
+				}
 
-				GetOffsets(playData.CompletionResultsExtraData.Notes);
+				scoreOffset = data.ScoreOffset;
 				lastSongBeat = Mathf.CeilToInt(playData.BeatmapInfo.SongDuration);
-				won = playData.Won;
 				if(!Plugin.Fish)
 				{
 					titleText.text = playData.BeatmapInfo.SongName;
@@ -127,130 +119,28 @@ namespace BeatSaviorUI.UI
 				titleText.fontSizeMin = 1;
 				titleText.fontSizeMax = 10;
 
-				CreateHorizontalLabels();
-
-				var sampleStep = Mathf.Max(1, Mathf.CeilToInt((graph.Count - 1f) / MaxGraphSegments));
-				var pointIndex = 0;
-				var lastDrawnValue = 0f;
-				var lastKey = 0f;
-				var lastValue = 0f;
-				foreach (var point in graph)
+				foreach (var label in data.HorizontalLabels)
 				{
-					lastKey = point.Key;
-					lastValue = point.Value;
-					if (pointIndex == 0)
-					{
-						lastGraphEntry = point.Key;
-						lastDrawnValue = point.Value;
-					}
-					else if (pointIndex % sampleStep == 0)
-					{
-						CreateGraphLine((lastGraphEntry, lastDrawnValue), (point.Key, point.Value), Color.white);
-						lastGraphEntry = point.Key;
-						lastDrawnValue = point.Value;
-					}
-					pointIndex++;
+					CreateHorizontalLabelLine(label.Value, new Color(label.Red, label.Green, label.Blue, .75f));
 				}
-				if (lastGraphEntry != lastKey)
-					CreateGraphLine((lastGraphEntry, lastDrawnValue), (lastKey, lastValue), Color.white);
 
-				CreateVerticalLabels();
-			} 
+				foreach (var segment in data.Segments)
+				{
+					CreateGraphLine((segment.StartTime, segment.StartValue), (segment.EndTime, segment.EndValue), Color.white);
+				}
+
+				foreach (var label in data.VerticalLabels)
+				{
+					var color = label.IsFailed ? Color.red : new Color(1, 1, 1, .75f);
+					CreateVerticalLabelLine(label.Time, label.Value, color, label.Text);
+				}
+
+				if (data.Error != null)
+					Plugin.Log.Error(data.Error);
+			}
 			catch (Exception e)
 			{
 				Plugin.Log.Error(e);
-			}
-		} 
-
-		private void CreateVerticalLabels()
-		{
-			// Add the easter egg "Connasse de chaise"
-
-			List<float> drops = new List<float>();
-			int labelsLeft = 3;
-
-			if(misses.Count != labelsLeft)
-				drops = FindScoreDrops();
-
-			if (misses.Count < 4)
-			{
-				for (int i = 0; i < misses.Count; i++)
-				{
-					CreateVerticalLabelLine(misses[i], graph[misses[i]], new Color(1, 1, 1, .75f), "Missed");
-					labelsLeft--;
-				}
-			}
-
-			for (int i = 0; i < drops.Count && labelsLeft > 0; i++)
-			{
-				if (misses.Count < 4 && !misses.Contains(drops[i]) || misses.Count >= 4)
-				{
-					CreateVerticalLabelLine(drops[i], graph[drops[i]], new Color(1, 1, 1, .75f), "Score drop");
-					labelsLeft--;
-				}
-			}
-
-			if (!won)
-				CreateVerticalLabelLine(graph.Last().Key, graph.Last().Value, Color.red, "Failed");
-		}
-
-		private List<float> FindScoreDrops()
-		{
-			int dropWindow = 2;     // in seconds
-			int firstBeat = (int)graph.First().Key;
-			int lastBeat = (int)graph.Last().Key;
-			int closestToDropWindow = firstBeat, dropSpacing = 4;
-			float diff, dropDelta = -0.01f;
-			List<(float, float)> drops = new List<(float, float)>();
-			List<float> res = new List<float>();
-
-			if (scoreOffset == 0.93f)
-				dropDelta = 0.0025f;	// 0.25%
-			else if (scoreOffset == 0.8f)
-				dropDelta = 0.005f;		// 0.5%
-
-			for (int i = firstBeat + dropWindow + 5; i < lastBeat; i++)
-			{
-				if (graph.ContainsKey(i - dropWindow))
-					closestToDropWindow = i - dropWindow;
-
-				if (graph.ContainsKey(i))
-				{
-					diff = graph[i] - graph[closestToDropWindow];
-					if (diff < dropDelta)
-					{
-						drops.Add((i, diff));
-						i += dropSpacing;
-					}
-				}
-			}
-
-			drops = drops.OrderBy(e => e.Item2).Take(3).ToList();
-
-			while (res.Count < 3 && drops.Count > 0)
-			{
-				res.Add(drops.First().Item1);
-				drops.RemoveAt(0);
-			}
-
-			return res;
-		}
-
-		private void CreateHorizontalLabels()
-		{
-			float increment = 0.1f;
-
-			if (scoreOffset == 0.93f)
-				increment = 0.01f;
-			else if (scoreOffset == 0.8f)
-				increment = 0.05f;
-
-			for (float i = 0 ; i <= 1 + increment - 0.001f; i += increment)
-			{
-				if (i >= scoreOffset - 0.001f)
-				{
-					CreateHorizontalLabelLine(i, new Color(1, 0.2f + i * 0.8f, 0.2f + i * 0.8f, .75f));
-				}
 			}
 		}
 
@@ -338,24 +228,6 @@ namespace BeatSaviorUI.UI
 			rt.sizeDelta = new Vector2(distance, lineWidth);
 			rt.anchoredPosition = pos1v + dir * distance * .5f;
 			rt.localEulerAngles = new Vector3(0, 0, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
-		}
-
-		private void GetOffsets(List<Note> notes)
-		{
-			foreach (Note n in notes)
-			{
-				if (n.IsAMiss && misses.Count < 4)
-					misses.Add((float)Math.Truncate(n.Time));
-			}
-
-			scoreOffset = graph.Min(e => e.Value);
-
-			if (scoreOffset >= 0.93f)
-				scoreOffset = 0.93f;
-			else if (scoreOffset >= 0.85f)
-				scoreOffset = 0.8f;
-			else
-				scoreOffset -= 0.1f;
 		}
 
 	}

@@ -10,9 +10,9 @@ internal class PlayTelemetry
     public float TimeDependence { get; private set; }
     public Accuracy Accuracy { get; private set; }
 	
-    public void ProcessNote(Note note)
+    public void ProcessNote(NoteSnapshot note)
     {
-        Accuracy += (note.Score[0], note.Score[1], note.Score[2]);
+        Accuracy += (note.BeforeScore, note.CenterScore, note.AfterScore);
         Speed += note.Speed;
         PreSwing += note.PreSwing;
         PostSwing += note.PostSwing;

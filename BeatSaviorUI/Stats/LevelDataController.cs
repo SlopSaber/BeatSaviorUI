@@ -46,6 +46,7 @@ internal class LevelDataController : IInitializable, IDisposable
 
     public void Initialize()
     {
+        PlayDataPreparation.BeginPlay();
         SwingTranspilerHandler.Reset();
         SwingTranspilerHandler.Enabled = Config.Enabled;
         if (!Config.Enabled) return;
@@ -77,10 +78,13 @@ internal class LevelDataController : IInitializable, IDisposable
 		    maxCombo = combo;
 	    }
 
-	    var playData = new CompletionResultsExtraData(notes, maxCombo, bombHitCount, pauseCount, wallHitCount);
+	    var snapshots = new NoteSnapshot[notes.Count];
+	    for (int i = 0; i < snapshots.Length; i++)
+		    snapshots[i] = new NoteSnapshot(notes[i]);
+	    var playData = new CompletionResultsExtraData(snapshots, maxCombo, bombHitCount, pauseCount, wallHitCount);
 	    var beatmapInfo = GetBeatmapInfo();
 	    
-	    PluginConfig.LastKnownPlayData = new(levelCompletionResults, playData, beatmapInfo);
+	    PlayDataPreparation.Submit(new PlayData.PreparationRequest(levelCompletionResults, playData, beatmapInfo));
     }
 
     private BeatmapInfo GetBeatmapInfo()
